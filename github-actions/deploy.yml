@@ -1,0 +1,193 @@
+name: Test-and-Deployment
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SETOPS_WEB_APP: "web"
+  SETOPS_WORKER_APP: "worker"
+  SETOPS_CLOCK_APP: "clock"
+  SETOPS_IMAGE: "IMAGENAME"
+  SETOPS_PROJECT: "ccmycv"
+  SETOPS_HOST: "your-setops-host.example.com"
+
+jobs:
+  deploy:
+      name: deploy
+      runs-on: ubuntu-latest
+      needs: [test, yarn_eslint, rufo-and-rubocop] # put your other jobs here
+      if: github.ref == 'refs/heads/production' || github.ref == 'refs/heads/staging'
+      steps:
+        # ----- Set envs from current branch ------
+        - name: "[Config] Extract branch name"
+          run: |
+            echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
+        # Set App env by branch name
+        - name: "[Config] Set up app env 'staging'"
+          if: env.BRANCH_NAME == 'staging'
+          run: |
+            echo "APP_ENV=staging" >> $GITHUB_ENV
+        - name: "[Config] Set up app env 'production'"
+          if: env.BRANCH_NAME == 'production'
+          run: |
+            echo "APP_ENV=production" >> $GITHUB_ENV
+
+        # Stop here if no app env could be determined
+        - name: "[Config] Validate app env"
+          if: env.APP_ENV == ''
+          run: |
+            echo "⚠️ Could not determine app env for branch ${{ env.BRANCH_NAME }}"
+            exit 1
+
+        - name: "[Config] Prepare Setops config"
+          run: |
+            echo "SETOPS_TARGET_IMAGE_WEB_APP=${{ env.SETOPS_HOST }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WEB_APP }}:latest" >> $GITHUB_ENV
+            echo "SETOPS_TARGET_IMAGE_WORKER_APP=${{ env.SETOPS_HOST }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WORKER_APP }}:latest" >> $GITHUB_ENV
+            echo "SETOPS_TARGET_IMAGE_CLOCK_APP=${{ env.SETOPS_HOST }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_CLOCK_APP }}:latest" >> $GITHUB_ENV
+
+        - name: "[Config] Summarize Config"
+          run: |
+            echo "Branch name: ${{ env.BRANCH_NAME }}"
+            echo "App env: ${{ env.APP_ENV }}"
+            echo "Setops Project: ${{ env.SETOPS_PROJECT }}"
+            echo "Setops Stage: ${{ env.APP_ENV }}"
+            echo "Image: ${{ env.SETOPS_IMAGE }}"
+            echo "Target Image Web App: ${{ env.SETOPS_TARGET_IMAGE_WEB_APP }}"
+            echo "Target Image Worker App: ${{ env.SETOPS_TARGET_IMAGE_WORKER_APP }}"
+            echo "Target Image Clock App: ${{ env.SETOPS_TARGET_IMAGE_CLOCK_APP }}"
+
+        # ----- Install dependencies -----
+        - name: "[Setup] Install Setops"
+          uses: setopsco/setup-setops@v1
+          with:
+            setops_url: https://${{ env.SETOPS_HOST }}
+            setops_username: ${{ secrets.SETOPS_USER }}
+            setops_password: ${{ secrets.SETOPS_PASSWORD }}
+
+        - name: "[Setup] Get Setops login command"
+          run: |
+            LOGIN_COMMAND=$(setops registry:login | grep printf)
+            eval $LOGIN_COMMAND
+
+         # ----- Discard old Changeset -----
+        - name: "[Setup] Discard old Changeset"
+          run: |
+            setops --stage ${{ env.SETOPS_STAGE }} discard || true
+
+        - name: "[Setup] Install Pack CLI"
+          uses: buildpacks/github-actions/setup-pack@main
+
+        # ----- Build image -----
+        - name: "[Build] Checkout repository"
+          uses: actions/checkout@v2
+
+        - name: "[Build] Set git revision"
+          run: |
+            git rev-parse --short "$GITHUB_SHA" > .git_revision
+
+        - name: "[Build] Build image"
+          run: |
+            pack build ${{ env.SETOPS_IMAGE }} --builder heroku/buildpacks:20 --env-file=".env.build"
+
+        # ----- Push image -----
+        - name: "[Push] Tag image"
+          run: |
+            docker tag ${{ env.SETOPS_IMAGE }}:latest ${{ env.SETOPS_TARGET_IMAGE_WEB_APP }}
+            docker tag ${{ env.SETOPS_IMAGE }}:latest ${{ env.SETOPS_TARGET_IMAGE_WORKER_APP }}
+            docker tag ${{ env.SETOPS_IMAGE }}:latest ${{ env.SETOPS_TARGET_IMAGE_CLOCK_APP }}
+
+        - name: "[Push] Push image"
+          run: |
+            SETOPS_DIGEST_WEB_APP=$(docker push ${{ env.SETOPS_TARGET_IMAGE_WEB_APP }} | grep -o 'sha256:[a-zA-Z0-9]*')
+            SETOPS_DIGEST_WORKER_APP=$(docker push ${{ env.SETOPS_TARGET_IMAGE_WORKER_APP }} | grep -o 'sha256:[a-zA-Z0-9]*')
+            SETOPS_DIGEST_CLOCK_APP=$(docker push ${{ env.SETOPS_TARGET_IMAGE_CLOCK_APP }} | grep -o 'sha256:[a-zA-Z0-9]*')
+            echo "SETOPS_DIGEST_WEB_APP=$SETOPS_DIGEST_WEB_APP" >> $GITHUB_ENV
+            echo "SETOPS_DIGEST_WORKER_APP=$SETOPS_DIGEST_WORKER_APP" >> $GITHUB_ENV
+            echo "SETOPS_DIGEST_CLOCK_APP=$SETOPS_DIGEST_CLOCK_APP" >> $GITHUB_ENV
+
+        # ----- Create releases -----
+        - name: "[Release] Create web release"
+          run: |
+            SETOPS_RELEASE_ID_WEB=$(setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --app ${{ env.SETOPS_WEB_APP }} release:create ${{ env.SETOPS_DIGEST_WEB_APP }} | grep -o 'ReleaseID.*' | grep -o '[0-9].*')
+            echo "SETOPS_RELEASE_ID_WEB=$SETOPS_RELEASE_ID_WEB" >> $GITHUB_ENV
+
+        - name: "[Release] Create worker release"
+          run: |
+            SETOPS_RELEASE_ID_WORKER=$(setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --app ${{ env.SETOPS_WORKER_APP }} release:create ${{ env.SETOPS_DIGEST_WORKER_APP }} | grep -o 'ReleaseID.*' | grep -o '[0-9].*')
+            echo "SETOPS_RELEASE_ID_WORKER=$SETOPS_RELEASE_ID_WORKER" >> $GITHUB_ENV
+
+        - name: "[Release] Create clock release"
+          run: |
+            SETOPS_RELEASE_ID_CLOCK=$(setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --app ${{ env.SETOPS_CLOCK_APP }} release:create ${{ env.SETOPS_DIGEST_CLOCK_APP }} | grep -o 'ReleaseID.*' | grep -o '[0-9].*')
+            echo "SETOPS_RELEASE_ID_CLOCK=$SETOPS_RELEASE_ID_CLOCK" >> $GITHUB_ENV
+
+        - name: "[Release] Setops commit"
+          run: |
+            setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} changeset:info
+            setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --output plain changeset:commit
+
+        # ----- Run deploy tasks -----
+        - name: "[Release] Run Deploy Tasks"
+          run: |
+            setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --app ${{ env.SETOPS_WEB_APP }} task:run --debug --release ${{ env.SETOPS_RELEASE_ID_WEB }} -- './bin/run_deploy_tasks'
+
+        # ----- Activate release -----
+        - name: "[Release] Activate WEB release"
+          run: |
+            setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --app ${{ env.SETOPS_WEB_APP }} release:activate ${{ env.SETOPS_RELEASE_ID_WEB }}
+
+        - name: "[Release] Activate WORKER release"
+          run: |
+            setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --app ${{ env.SETOPS_WORKER_APP }} release:activate ${{ env.SETOPS_RELEASE_ID_WORKER }}
+
+        - name: "[Release] Activate CLOCK release"
+          run: |
+            setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --app ${{ env.SETOPS_CLOCK_APP }} release:activate ${{ env.SETOPS_RELEASE_ID_CLOCK }}
+
+        - name: "[Release] Setops commit"
+          run: |
+            setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} changeset:info
+            setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --output plain changeset:commit
+
+      - name: "[Release] Wait for Healthy WEB Container"
+        timeout-minutes: 2
+        run: |
+          until setops --stage ${{ env.SETOPS_STAGE }} app:ps ${{ env.SETOPS_WEB_APP }} | grep -w -E "${{ env.SETOPS_RELEASE_ID_WEB }}.*HEALTHY"
+          do
+            echo "Container not up & healthy, retry in 5 seconds"
+            sleep 5
+          done
+
+      - name: "[Release] Wait for Healthy WORKER Container"
+        timeout-minutes: 2
+        run: |
+          until setops --stage ${{ env.SETOPS_STAGE }} app:ps ${{ env.SETOPS_WORKER_APP }} | grep -w -E "${{ env.SETOPS_RELEASE_ID_WORKER }}.*RUNNING"
+          do
+            echo "Container not up & healthy, retry in 5 seconds"
+            sleep 5
+          done
+
+      - name: "[Release] Wait for Healthy CLOCK Container"
+        timeout-minutes: 2
+        run: |
+          until setops --stage ${{ env.SETOPS_STAGE }} app:ps ${{ env.SETOPS_CLOCK_APP }} | grep -w -E "${{ env.SETOPS_RELEASE_ID_CLOCK }}.*RUNNING"
+          do
+            echo "Container not up & healthy, retry in 5 seconds"
+            sleep 5
+          done
+
+        - name: "Summarize Deployment"
+          run: |
+            echo "✅  Action succeeded!"
+            echo "-------------------------"
+            echo "Setops Web App: ${{ env.SETOPS_WEB_APP }}"
+            echo "Setops Worker App: ${{ env.SETOPS_WORKER_APP }}"
+            echo "Setops Clock App: ${{ env.SETOPS_CLOCK_APP }}"
+            echo "Setops Project: ${{ env.SETOPS_PROJECT }}"
+            echo "Setops Stage: ${{ env.APP_ENV }}"
+            echo "Image Digest: ${{ env.SETOPS_DIGEST }}"
+            echo "Release ID Web: ${{ env.SETOPS_RELEASE_ID_WEB }}"
+            echo "Release ID Worker: ${{ env.SETOPS_RELEASE_ID_WORKER }}"
+            echo "Release ID Clock: ${{ env.SETOPS_RELEASE_ID_CLOCK }}"
