@@ -1,1 +1,5 @@
-# Documentation for 3rd-party integrations with SetOps
+# Community Docs
+
+## CI Systems Integration
+
+* [Bitbucket Pipelines](bitbucket-pipelines/README.md)

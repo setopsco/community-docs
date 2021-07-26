@@ -1,0 +1,205 @@
+pipelines:
+  default:
+    - step:
+        name: Set ENV variables
+        script:
+        - |
+          mkdir setops-pipeline
+          cat > setops-pipeline/.env <<EOF
+            SETOPS_WEB_APP=web
+            SETOPS_WORKER_APP=worker
+            SETOPS_CLOCK_APP=clock
+            SETOPS_IMAGE=cowsay
+            SETOPS_PROJECT=felix
+            SETOPS_HOST=dev.setops.net
+          EOF
+
+          if [[ "$BITBUCKET_BRANCH" == staging ]]; then
+            echo "APP_ENV=staging" >> setops-pipeline/.env
+          elif [[ "$BITBUCKET_BRANCH" == production ]]; then
+            echo "APP_ENV=production" >> setops-pipeline/.env
+          else
+            >&2 echo "error: branch $BITBUCKET_BRANCH not recognized for deployment"
+          fi
+
+          source setops-pipeline/.env
+          echo "SETOPS_TARGET_IMAGE_WEB_APP=$SETOPS_HOST/$SETOPS_PROJECT/$APP_ENV/$SETOPS_WEB_APP:latest" >> setops-pipeline/.env
+          echo "SETOPS_TARGET_IMAGE_WORKER_APP=$SETOPS_HOST/$SETOPS_PROJECT/$APP_ENV/$SETOPS_WORKER_APP:latest" >> setops-pipeline/.env
+          echo "SETOPS_TARGET_IMAGE_CLOCK_APP=$SETOPS_HOST/$SETOPS_PROJECT/$APP_ENV/$SETOPS_CLOCK_APP:latest" >> setops-pipeline/.env
+        artifacts:
+        - setops-pipeline/**
+
+    - step:
+        name: Print config summary
+        script:
+        - |
+          source setops-pipeline/.env
+          cat <<EOF
+          Config Summary
+          ==============
+
+          Branch name: $BITBUCKET_BRANCH
+          App env: $APP_ENV
+          SetOps Project: $SETOPS_PROJECT
+          SetOps Stage: $APP_ENV
+          Image: $SETOPS_IMAGE
+          Target Image Web App: $SETOPS_TARGET_IMAGE_WEB_APP
+          Target Image Worker App: $SETOPS_TARGET_IMAGE_WORKER_APP
+          Target Image Clock App: $SETOPS_TARGET_IMAGE_CLOCK_APP
+          EOF
+
+    - step:
+        name: setops login
+        image: ghcr.io/setopsco/setops-cli:latest
+        script:
+        - source setops-pipeline/.env
+        - printf "%s\n%s\n" "$SETOPS_USER" "$SETOPS_PASSWORD" | setops login --url "https://$SETOPS_HOST"
+        - base64 < /home/setops/.setops.yml > setops-pipeline/setops.yml
+        - setops registry:login -o plain | base64 > setops-pipeline/setops-registry.txt
+        artifacts:
+        - setops-pipeline/**
+
+    - step:
+        name: Build image
+        script:
+        - source setops-pipeline/.env
+
+        # Write .git_revision
+        - git rev-parse --short "$BITBUCKET_COMMIT" > .git_revision
+
+        # Build image with pack
+        # =====================
+        # Install pack
+        # - (curl -sSL "https://github.com/buildpacks/pack/releases/download/v0.20.0/pack-v0.20.0-linux.tgz" | tar -C /usr/local/bin/ --no-same-owner -xzv pack)
+        # pack build fails on Bitbucket CI with: ERROR: failed to build: executing lifecycle: failed to create 'creator' container: Error response from daemon: authorization denied by plugin pipelines: -v only supports $BITBUCKET_CLONE_DIR and its subdirectories
+        # - pack build "$SETOPS_IMAGE" --builder heroku/buildpacks:20 --env-file=".env.build"
+
+        # Build image with docker build
+        # =============================
+        - docker build -t "$SETOPS_IMAGE":latest .
+
+        # Log into SetOps Docker Registry
+        - eval $(base64 -d setops-pipeline/setops-registry.txt)
+
+        # Tag images
+        # ==========
+        # * Web
+        #   ---
+        - docker tag "$SETOPS_IMAGE":latest "$SETOPS_TARGET_IMAGE_WEB_APP"
+        - SETOPS_DIGEST_WEB_APP="$(docker push "$SETOPS_TARGET_IMAGE_WEB_APP" | grep -o 'sha256:[a-zA-Z0-9]*')"
+        - echo "SETOPS_DIGEST_WEB_APP=$SETOPS_DIGEST_WEB_APP" >> setops-pipeline/setops-digests.txt
+        # * Worker
+        #   ------
+        - docker tag "$SETOPS_IMAGE":latest "$SETOPS_TARGET_IMAGE_WORKER_APP"
+        - SETOPS_DIGEST_WORKER_APP="$(docker push "$SETOPS_TARGET_IMAGE_WORKER_APP" | grep -o 'sha256:[a-zA-Z0-9]*')"
+        - echo "SETOPS_DIGEST_WORKER_APP=$SETOPS_DIGEST_WORKER_APP" >> setops-pipeline/setops-digests.txt
+        # * Clock
+        #   -----
+        - docker tag "$SETOPS_IMAGE":latest "$SETOPS_TARGET_IMAGE_CLOCK_APP"
+        - SETOPS_DIGEST_CLOCK_APP="$(docker push "$SETOPS_TARGET_IMAGE_CLOCK_APP" | grep -o 'sha256:[a-zA-Z0-9]*')"
+        - echo "SETOPS_DIGEST_CLOCK_APP=$SETOPS_DIGEST_CLOCK_APP" >> setops-pipeline/setops-digests.txt
+        artifacts:
+        - setops-pipeline/**
+        services:
+        - docker
+
+    - step:
+        name: Create releases
+        image: ghcr.io/setopsco/setops-cli:latest
+        script:
+        - source setops-pipeline/.env
+        - base64 -d < setops-pipeline/setops.yml > /home/setops/.setops.yml
+        - source setops-pipeline/setops-digests.txt
+
+        # Discard old changeset
+        - setops -p $SETOPS_PROJECT -s $APP_ENV changeset:discard --ignore-not-exist
+
+        # * Create web release
+        - SETOPS_RELEASE_ID_WEB=$(setops -p $SETOPS_PROJECT -s $APP_ENV --app $SETOPS_WEB_APP release:create $SETOPS_DIGEST_WEB_APP | grep -o 'ReleaseID.*' | grep -o '[0-9].*')
+        - echo "SETOPS_RELEASE_ID_WEB=$SETOPS_RELEASE_ID_WEB" >> setops-pipeline/setops-release-ids.txt
+        # * Create worker release
+        - SETOPS_RELEASE_ID_WORKER=$(setops -p $SETOPS_PROJECT -s $APP_ENV --app $SETOPS_WORKER_APP release:create $SETOPS_DIGEST_WORKER_APP | grep -o 'ReleaseID.*' | grep -o '[0-9].*')
+        - echo "SETOPS_RELEASE_ID_WORKER=$SETOPS_RELEASE_ID_WORKER" >> setops-pipeline/setops-release-ids.txt
+        # * Create clock release
+        - SETOPS_RELEASE_ID_CLOCK=$(setops -p $SETOPS_PROJECT -s $APP_ENV --app $SETOPS_CLOCK_APP release:create $SETOPS_DIGEST_CLOCK_APP | grep -o 'ReleaseID.*' | grep -o '[0-9].*')
+        - echo "SETOPS_RELEASE_ID_CLOCK=$SETOPS_RELEASE_ID_CLOCK" >> setops-pipeline/setops-release-ids.txt
+
+        # SetOps commit
+        - setops -p $SETOPS_PROJECT -s $APP_ENV changeset:info
+        - setops -p $SETOPS_PROJECT -s $APP_ENV --output plain changeset:commit
+        artifacts:
+        - setops-pipeline/**
+
+    - step:
+        name: Run Deploy Tasks
+        image: ghcr.io/setopsco/setops-cli:latest
+        script:
+        - source setops-pipeline/.env
+        - source setops-pipeline/setops-release-ids.txt
+        - base64 -d < setops-pipeline/setops.yml > /home/setops/.setops.yml
+        - setops -p $SETOPS_PROJECT -s $APP_ENV --app $SETOPS_WEB_APP task:run --debug --release $SETOPS_RELEASE_ID_WEB -- './bin/run_deploy_tasks'
+
+    - step:
+        name: Activate releases
+        image: ghcr.io/setopsco/setops-cli:latest
+        script:
+        - source setops-pipeline/.env
+        - source setops-pipeline/setops-release-ids.txt
+        - base64 -d < setops-pipeline/setops.yml > /home/setops/.setops.yml
+
+        - setops -p $SETOPS_PROJECT -s $APP_ENV --app $SETOPS_WEB_APP release:activate $SETOPS_RELEASE_ID_WEB
+        - setops -p $SETOPS_PROJECT -s $APP_ENV --app $SETOPS_WORKER_APP release:activate $SETOPS_RELEASE_ID_WORKER
+        - setops -p $SETOPS_PROJECT -s $APP_ENV --app $SETOPS_CLOCK_APP release:activate $SETOPS_RELEASE_ID_CLOCK
+
+        # SetOps commit
+        - setops -p $SETOPS_PROJECT -s $APP_ENV changeset:info
+        - setops -p $SETOPS_PROJECT -s $APP_ENV --output plain changeset:commit
+
+    - step:
+        name: Wait for healthy web containers
+        image: ghcr.io/setopsco/setops-cli:latest
+        max-time: 2 # timeout after 2m
+        script:
+        - source setops-pipeline/.env
+        - source setops-pipeline/setops-release-ids.txt
+        - base64 -d < setops-pipeline/setops.yml > /home/setops/.setops.yml
+        - |
+          until setops -p $SETOPS_PROJECT -s $APP_ENV app:ps $SETOPS_WEB_APP | grep -w -E "$SETOPS_RELEASE_ID_WEB.*HEALTHY"
+          do
+            echo "Container not up & healthy, retry in 5 seconds"
+            sleep 5
+          done
+
+    - step:
+        name: Wait for healthy worker containers
+        image: ghcr.io/setopsco/setops-cli:latest
+        max-time: 2 # timeout after 2m
+        script:
+        - source setops-pipeline/.env
+        - source setops-pipeline/setops-release-ids.txt
+        - base64 -d < setops-pipeline/setops.yml > /home/setops/.setops.yml
+        - |
+          until setops -p $SETOPS_PROJECT -s $APP_ENV app:ps $SETOPS_WORKER_APP | grep -w -E "$SETOPS_RELEASE_ID_WORKER.*HEALTHY"
+          do
+            echo "Container not up & healthy, retry in 5 seconds"
+            sleep 5
+          done
+
+    - step:
+        name: Wait for healthy clock containers
+        image: ghcr.io/setopsco/setops-cli:latest
+        max-time: 2 # timeout after 2m
+        script:
+        - source setops-pipeline/.env
+        - source setops-pipeline/setops-release-ids.txt
+        - base64 -d < setops-pipeline/setops.yml > /home/setops/.setops.yml
+        - |
+          until setops -p $SETOPS_PROJECT -s $APP_ENV app:ps $SETOPS_CLOCK_APP | grep -w -E "$SETOPS_RELEASE_ID_CLOCK.*HEALTHY"
+          do
+            echo "Container not up & healthy, retry in 5 seconds"
+            sleep 5
+          done
+definitions:
+  services:
+    docker:
+      memory: 2048 # instead of default 1024MB
