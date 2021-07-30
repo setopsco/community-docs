@@ -29,6 +29,7 @@ This [template](bitbucket-pipelines.yml) is made for a web application with thre
 
    * The deployment should run at the end of existing jobs (unit tests, for example), and it should declare a dependency on previous jobs.
    * The workflow includes two ways of building a Docker image: the classic `Dockerfile` way and Cloud Native Buildpacks. Visit the guide on Docker images in the SetOps documentation to learn about both alternatives.
+   * Add the `run_deploy_tasks` script in the `/bin/` directory, in case you want to run something for each deployment (e.g. database migrations).
    * If your apps are not called `web`, `worker`, and `clock`, you need to adjust the names and add/remove the respective steps.
    * If your deployment branches differ from `staging` or `production`, you need to adjust the names.
    * If you did not configure a Container Healthcheck, replace `HEALTHY` with `RUNNING` in the `Wait for $NAME task to be healthy` steps.
