@@ -1,4 +1,10 @@
-name: Test-and-Deployment
+name: Test & deploy to SetOps
+
+on:
+  push:
+    branches:
+      - production
+      - staging
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -41,7 +47,7 @@ jobs:
             echo "⚠️ Could not determine app env for branch ${{ env.BRANCH_NAME }}"
             exit 1
 
-        - name: "[Config] Prepare Setops config"
+        - name: "[Config] Prepare SetOps config"
           run: |
             echo "SETOPS_TARGET_IMAGE_WEB_APP=${{ env.SETOPS_HOST }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WEB_APP }}:latest" >> $GITHUB_ENV
             echo "SETOPS_TARGET_IMAGE_WORKER_APP=${{ env.SETOPS_HOST }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WORKER_APP }}:latest" >> $GITHUB_ENV
@@ -51,22 +57,22 @@ jobs:
           run: |
             echo "Branch name: ${{ env.BRANCH_NAME }}"
             echo "App env: ${{ env.APP_ENV }}"
-            echo "Setops Project: ${{ env.SETOPS_PROJECT }}"
-            echo "Setops Stage: ${{ env.APP_ENV }}"
+            echo "SetOps Project: ${{ env.SETOPS_PROJECT }}"
+            echo "SetOps Stage: ${{ env.APP_ENV }}"
             echo "Image: ${{ env.SETOPS_IMAGE }}"
             echo "Target Image Web App: ${{ env.SETOPS_TARGET_IMAGE_WEB_APP }}"
             echo "Target Image Worker App: ${{ env.SETOPS_TARGET_IMAGE_WORKER_APP }}"
             echo "Target Image Clock App: ${{ env.SETOPS_TARGET_IMAGE_CLOCK_APP }}"
 
         # ----- Install dependencies -----
-        - name: "[Setup] Install Setops"
+        - name: "[Setup] Install SetOps"
           uses: setopsco/setup-setops@v1
           with:
             setops_url: https://${{ env.SETOPS_HOST }}
             setops_username: ${{ secrets.SETOPS_USER }}
             setops_password: ${{ secrets.SETOPS_PASSWORD }}
 
-        - name: "[Setup] Get Setops login command"
+        - name: "[Setup] Get SetOps login command"
           run: |
             LOGIN_COMMAND=$(setops registry:login | grep printf)
             eval $LOGIN_COMMAND
@@ -74,7 +80,7 @@ jobs:
          # ----- Discard old Changeset -----
         - name: "[Setup] Discard old Changeset"
           run: |
-            setops --stage ${{ env.SETOPS_STAGE }} discard || true
+            setops --stage ${{ env.SETOPS_STAGE }} discard --ignore-not-exist
 
         - name: "[Setup] Install Pack CLI"
           uses: buildpacks/github-actions/setup-pack@main
@@ -123,7 +129,7 @@ jobs:
             SETOPS_RELEASE_ID_CLOCK=$(setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --app ${{ env.SETOPS_CLOCK_APP }} release:create ${{ env.SETOPS_DIGEST_CLOCK_APP }} | grep -o 'ReleaseID.*' | grep -o '[0-9].*')
             echo "SETOPS_RELEASE_ID_CLOCK=$SETOPS_RELEASE_ID_CLOCK" >> $GITHUB_ENV
 
-        - name: "[Release] Setops commit"
+        - name: "[Release] SetOps commit"
           run: |
             setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} changeset:info
             setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --output plain changeset:commit
@@ -146,33 +152,33 @@ jobs:
           run: |
             setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --app ${{ env.SETOPS_CLOCK_APP }} release:activate ${{ env.SETOPS_RELEASE_ID_CLOCK }}
 
-        - name: "[Release] Setops commit"
+        - name: "[Release] SetOps commit"
           run: |
             setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} changeset:info
             setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} --output plain changeset:commit
 
-      - name: "[Release] Wait for Healthy WEB Container"
+      - name: "[Release] Wait for WEB task to be healthy"
         timeout-minutes: 2
         run: |
-          until setops --stage ${{ env.SETOPS_STAGE }} app:ps ${{ env.SETOPS_WEB_APP }} | grep -w -E "${{ env.SETOPS_RELEASE_ID_WEB }}.*HEALTHY"
+          until setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} app:ps ${{ env.SETOPS_WEB_APP }} | grep -w -E "${{ env.SETOPS_RELEASE_ID_WEB }}.*HEALTHY"
           do
             echo "Container not up & healthy, retry in 5 seconds"
             sleep 5
           done
 
-      - name: "[Release] Wait for Healthy WORKER Container"
+      - name: "[Release] Wait for WORKER task to be healthy"
         timeout-minutes: 2
         run: |
-          until setops --stage ${{ env.SETOPS_STAGE }} app:ps ${{ env.SETOPS_WORKER_APP }} | grep -w -E "${{ env.SETOPS_RELEASE_ID_WORKER }}.*RUNNING"
+          until setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} app:ps ${{ env.SETOPS_WORKER_APP }} | grep -w -E "${{ env.SETOPS_RELEASE_ID_WORKER }}.*RUNNING"
           do
             echo "Container not up & healthy, retry in 5 seconds"
             sleep 5
           done
 
-      - name: "[Release] Wait for Healthy CLOCK Container"
+      - name: "[Release] Wait for CLOCK task to be healthy"
         timeout-minutes: 2
         run: |
-          until setops --stage ${{ env.SETOPS_STAGE }} app:ps ${{ env.SETOPS_CLOCK_APP }} | grep -w -E "${{ env.SETOPS_RELEASE_ID_CLOCK }}.*RUNNING"
+          until setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} app:ps ${{ env.SETOPS_CLOCK_APP }} | grep -w -E "${{ env.SETOPS_RELEASE_ID_CLOCK }}.*RUNNING"
           do
             echo "Container not up & healthy, retry in 5 seconds"
             sleep 5
@@ -182,11 +188,11 @@ jobs:
           run: |
             echo "✅  Action succeeded!"
             echo "-------------------------"
-            echo "Setops Web App: ${{ env.SETOPS_WEB_APP }}"
-            echo "Setops Worker App: ${{ env.SETOPS_WORKER_APP }}"
-            echo "Setops Clock App: ${{ env.SETOPS_CLOCK_APP }}"
-            echo "Setops Project: ${{ env.SETOPS_PROJECT }}"
-            echo "Setops Stage: ${{ env.APP_ENV }}"
+            echo "SetOps Web App: ${{ env.SETOPS_WEB_APP }}"
+            echo "SetOps Worker App: ${{ env.SETOPS_WORKER_APP }}"
+            echo "SetOps Clock App: ${{ env.SETOPS_CLOCK_APP }}"
+            echo "SetOps Project: ${{ env.SETOPS_PROJECT }}"
+            echo "SetOps Stage: ${{ env.APP_ENV }}"
             echo "Image Digest: ${{ env.SETOPS_DIGEST }}"
             echo "Release ID Web: ${{ env.SETOPS_RELEASE_ID_WEB }}"
             echo "Release ID Worker: ${{ env.SETOPS_RELEASE_ID_WORKER }}"
