@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Somewhat inspired by https://github.com/gunpowderlabs/buildpack-ruby-rake-deploy-tasks/blob/master/bin/compile
+
+set -e            # fail fast
+set -o pipefail   # don't ignore exit codes when piping output
+
+echo ""
+echo "+-----------------------------+"
+echo "|                             |"
+echo "|   Running deploy tasks ...  |"
+echo "|                             |"
+echo "+-----------------------------+"
+
+if [ -z "$DEPLOY_TASKS" ]; then
+  echo "DEPLOY_TASKS has not been set or is empty."
+  echo "If set, it should include a list of commands split by ';'"
+  echo "e.g. DEPLOY_TASKS=rails db:migrate;echo \"HI\""
+else
+  while IFS=';' read -ra TASKS; do
+    for task in "${TASKS[@]}"; do
+      echo "==> $task"
+      echo ""
+      $task  || {
+        echo "==> \"$task\" failed - exiting"
+        exit 1
+      }
+      echo "==> \"$task\" succeeded"
+      echo ""
+    done
+  done <<< "$DEPLOY_TASKS"
+  echo ""
+  echo "+-----------------------------+"
+  echo "|                             |"
+  echo "|   Deploy tasks succeeded    |"
+  echo "|                             |"
+  echo "+-----------------------------+"
+fi
