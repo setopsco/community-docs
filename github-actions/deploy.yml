@@ -16,7 +16,7 @@ env:
   SETOPS_CLOCK_APP: "clock"
   SETOPS_IMAGE: "IMAGENAME"
   SETOPS_PROJECT: "ccmycv"
-  SETOPS_HOST: "your-setops-host.example.com"
+  SETOPS_CLIENT: "yourcompany"
 
 jobs:
   deploy:
@@ -49,9 +49,9 @@ jobs:
 
         - name: "[Config] Prepare SetOps config"
           run: |
-            echo "SETOPS_TARGET_IMAGE_WEB_APP=${{ env.SETOPS_HOST }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WEB_APP }}:latest" >> $GITHUB_ENV
-            echo "SETOPS_TARGET_IMAGE_WORKER_APP=${{ env.SETOPS_HOST }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WORKER_APP }}:latest" >> $GITHUB_ENV
-            echo "SETOPS_TARGET_IMAGE_CLOCK_APP=${{ env.SETOPS_HOST }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_CLOCK_APP }}:latest" >> $GITHUB_ENV
+            echo "SETOPS_TARGET_IMAGE_WEB_APP=${{ env.SETOPS_CLIENT }}.setops.net/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WEB_APP }}:latest" >> $GITHUB_ENV
+            echo "SETOPS_TARGET_IMAGE_WORKER_APP=${{ env.SETOPS_CLIENT }}.setops.net/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WORKER_APP }}:latest" >> $GITHUB_ENV
+            echo "SETOPS_TARGET_IMAGE_CLOCK_APP=${{ env.SETOPS_CLIENT }}.setops.net/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_CLOCK_APP }}:latest" >> $GITHUB_ENV
 
         - name: "[Config] Summarize Config"
           run: |
@@ -66,9 +66,9 @@ jobs:
 
         # ----- Install dependencies -----
         - name: "[Setup] Install SetOps"
-          uses: setopsco/setup-setops@v1
+          uses: setopsco/setup-setops@v2
           with:
-            setops_url: https://${{ env.SETOPS_HOST }}
+            setops_client: ${{ env.SETOPS_CLIENT }}
             setops_username: ${{ secrets.SETOPS_USER }}
             setops_password: ${{ secrets.SETOPS_PASSWORD }}
 

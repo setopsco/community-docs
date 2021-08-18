@@ -11,7 +11,7 @@ pipelines:
             SETOPS_CLOCK_APP=clock
             SETOPS_IMAGE=cowsay
             SETOPS_PROJECT=felix
-            SETOPS_HOST=dev.setops.net
+            SETOPS_CLIENT=dev
           EOF
 
           if [[ "$BITBUCKET_BRANCH" == staging ]]; then
@@ -23,9 +23,9 @@ pipelines:
           fi
 
           source setops-pipeline/.env
-          echo "SETOPS_TARGET_IMAGE_WEB_APP=$SETOPS_HOST/$SETOPS_PROJECT/$APP_ENV/$SETOPS_WEB_APP:latest" >> setops-pipeline/.env
-          echo "SETOPS_TARGET_IMAGE_WORKER_APP=$SETOPS_HOST/$SETOPS_PROJECT/$APP_ENV/$SETOPS_WORKER_APP:latest" >> setops-pipeline/.env
-          echo "SETOPS_TARGET_IMAGE_CLOCK_APP=$SETOPS_HOST/$SETOPS_PROJECT/$APP_ENV/$SETOPS_CLOCK_APP:latest" >> setops-pipeline/.env
+          echo "SETOPS_TARGET_IMAGE_WEB_APP=$SETOPS_CLIENT.setops.net/$SETOPS_PROJECT/$APP_ENV/$SETOPS_WEB_APP:latest" >> setops-pipeline/.env
+          echo "SETOPS_TARGET_IMAGE_WORKER_APP=$SETOPS_CLIENT.setops.net/$SETOPS_PROJECT/$APP_ENV/$SETOPS_WORKER_APP:latest" >> setops-pipeline/.env
+          echo "SETOPS_TARGET_IMAGE_CLOCK_APP=$SETOPS_CLIENT.setops.net/$SETOPS_PROJECT/$APP_ENV/$SETOPS_CLOCK_APP:latest" >> setops-pipeline/.env
         artifacts:
         - setops-pipeline/**
 
@@ -53,7 +53,7 @@ pipelines:
         image: ghcr.io/setopsco/setops-cli:latest
         script:
         - source setops-pipeline/.env
-        - printf "%s\n%s\n" "$SETOPS_USER" "$SETOPS_PASSWORD" | setops login --url "https://$SETOPS_HOST"
+        - printf "%s\n%s\n%s\n" "$SETOPS_CLIENT" "$SETOPS_USER" "$SETOPS_PASSWORD" | setops login
         - base64 < /home/setops/.setops.yml > setops-pipeline/setops.yml
         - setops registry:login -o plain | base64 > setops-pipeline/setops-registry.txt
         artifacts:
