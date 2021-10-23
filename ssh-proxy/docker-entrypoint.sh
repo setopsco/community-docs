@@ -11,7 +11,7 @@ main() {
 
   echo "Setting proxy config..."
   sed 's/HOST:PORT/'$SSH_FORWARD_HOST'/g' /sshd_config | tee /sshd_config
-  sed 's/PROXY-PORT/'$SSH_PROXY_PORT'/g' /sshd_config | tee /sshd_config
+  sed 's/PROXY-PORT/'$PORT'/g' /sshd_config | tee /sshd_config
   cat /sshd_config
   cp /sshd_config /etc/ssh/sshd_config
 
