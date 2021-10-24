@@ -3,6 +3,7 @@ Port PROXY-PORT
 HostKey /etc/ssh/ssh_host_rsa_key
 PasswordAuthentication yes
 ChallengeResponseAuthentication yes
+AuthorizedKeysFile /app/authorized_keys
 UseDNS no
 MaxAuthTries 5
 LoginGraceTime 60

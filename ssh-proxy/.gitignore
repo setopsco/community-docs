@@ -1,3 +1,4 @@
 .envrc
 key
 key.pub
+authorized_keys

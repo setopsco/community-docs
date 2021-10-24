@@ -15,18 +15,17 @@ This is an example of deploying an SSH Database Proxy application on SetOps usin
 
 1. Link the existing Database to the proxy app:
 
-    ```text
+    ```shell
     setops -p <PROJECT> -s <STAGE> --app proxy link:create database --env-key DATABASE_URL
     ```
 
 1. Set the environment variables:
 
     ```text
-    SSH_FORWARD_HOST: <Databasehost>:<Databaseport>
     SSH_HOST_KEY: <see hint>
     SSH_PASSWORD: <see hint>
-    SSH_PROXY_PORT: <SetOps Network Port, can be found under `sos app:info proxy`>
     NO_VHOST: '1'
+    (optional) SSH_AUTHORIZED_KEYS: <see hint>
     ```
 
     > Hint:
@@ -34,8 +33,10 @@ This is an example of deploying an SSH Database Proxy application on SetOps usin
     > `SSH_HOST_KEY`: SSH server host key (generate with `ssh-keygen -t rsa -b 4096 -f key` without passphrase), encode to base64 with `base64 --break=0 < key`
     >
     > `SSH_PASSWORD`: random 16 character password (generate with `pwgen 16 1`)
+    >
+    > `SSH_AUTHORIZED_KEYS`: SSH public keys files, encode to base64 with `base64 --break=0 < authorized_keys`
 
-    Use the `setops -p <PROJECT> -s <STAGE> --app proxy env:set <var>:<value>` to set the values. You can get the database host, port and credentials by running something like `setops -p <PROJECT> -s <STAGE> --app <app> task:run --entrypoint sh -- -c "printenv"` in an already existing app.
+    Use the `setops -p <PROJECT> -s <STAGE> --app proxy env:set <var>:<value>` to set the values. The port of the proxy server and the forward database host and port are gathered by using the `$PORT` and `$DATABASE_URL` environment variables.
 
 1. Build & Deploy the proxy using:
 
