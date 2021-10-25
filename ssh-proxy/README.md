@@ -44,8 +44,8 @@ This is an example of deploying an SSH Database Proxy application on SetOps usin
     docker build -t <CLIENT>.setops.net/<PROJECT>/<STAGE>/proxy .
     docker push <CLIENT>.setops.net/<PROJECT>/<STAGE>/proxy
 
-    setops - p <PROJECT> -s <STAGE> --app proxy release:create sha256:<sha>
-    setops - p <PROJECT> -s <STAGE> --app proxy release:activate 1
+    setops -p <PROJECT> -s <STAGE> --app proxy release:create sha256:<sha>
+    setops -p <PROJECT> -s <STAGE> --app proxy release:activate 1
     ```
 
 ## Connection
