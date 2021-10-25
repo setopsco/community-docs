@@ -11,12 +11,14 @@ This is an example of deploying an SSH Database Proxy application on SetOps usin
 
     setops -p <PROJECT> -s <STAGE> --app proxy network:set protocol tcp
     setops -p <PROJECT> -s <STAGE> --app proxy network:set public true
+    setops -p <PROJECT> -s <STAGE> changeset:commit
     ```
 
 1. Link the existing Database to the proxy app:
 
     ```shell
     setops -p <PROJECT> -s <STAGE> --app proxy link:create database --env-key DATABASE_URL
+    setops -p <PROJECT> -s <STAGE> changeset:commit
     ```
 
 1. Set the environment variables:
@@ -36,7 +38,7 @@ This is an example of deploying an SSH Database Proxy application on SetOps usin
     >
     > `SSH_AUTHORIZED_KEYS`: SSH public keys files, encode to base64 with `base64 --break=0 < authorized_keys`
 
-    Use the `setops -p <PROJECT> -s <STAGE> --app proxy env:set <var>:<value>` to set the values. The port of the proxy server and the forward database host and port are gathered by using the `$PORT` and `$DATABASE_URL` environment variables.
+    Use the `setops -p <PROJECT> -s <STAGE> --app proxy env:set <var>:<value>` to set the values. The port of the proxy server and the forward database host and port are gathered by using the `$PORT` and `$DATABASE_URL` environment variables. Commit the environment variables with `setops -p <PROJECT> -s <STAGE> changeset:commit`.
 
 1. Build & Deploy the proxy using:
 
@@ -46,6 +48,7 @@ This is an example of deploying an SSH Database Proxy application on SetOps usin
 
     setops -p <PROJECT> -s <STAGE> --app proxy release:create sha256:<sha>
     setops -p <PROJECT> -s <STAGE> --app proxy release:activate 1
+    setops -p <PROJECT> -s <STAGE> changeset:commit
     ```
 
 ## Connection
