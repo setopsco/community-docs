@@ -62,11 +62,11 @@ To connect to the ssh-server, use the following settings:
 
 To connect to the database, extract the following values from the `DATABASE_URL` environment variable:
 
-- Host
-- Port
-- User
-- Password
-- Database
+- Host (example: `shared.client-id.eu-central-1.rds.amazonaws.com`)
+- Port (example: `5432`)
+- User (example: `postgres`)
+- Password (example: `password1`)
+- Database (example: `test_database`)
 
 An example connection using using [Table Plus](https://www.tableplus.io/download) can be found in the picture below:
 
