@@ -2,16 +2,17 @@
 
 ## CI Systems Integration
 
-* [GitHub Actions](github-actions/README.md)
-* [Bitbucket Pipelines](bitbucket-pipelines/README.md)
+* [GitHub Actions](github-actions)
+* [Bitbucket Pipelines](bitbucket-pipelines)
 
 ## Proxy Applications
 
-* [SSH-Proxy](ssh-proxy/README.md)
+* [SSH-Proxy](ssh-proxy)
 
 ## Data Transfer Applications
-* [SFTP](sftp/README.md)
+
+* [SFTP](sftp)
 
 ## 3rd-party Tools
 
-* [Graylog](graylog/README.md)
+* [Graylog](graylog)
