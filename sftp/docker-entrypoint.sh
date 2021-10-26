@@ -76,7 +76,11 @@ EOF
   printf "\n------------------------------------------\n\n"
 
   echo "Starting sshd..."
-  exec /usr/sbin/sshd -D
+  if [ "${SSH_PRINT_LOGS_TO_STDERR=}" == "true" ]; then
+    exec /usr/sbin/sshd -D -e # prints logs to stderr
+  else
+    exec /usr/sbin/sshd -D
+  fi
 }
 
 main "$@"
