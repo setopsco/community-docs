@@ -15,7 +15,7 @@ env:
   SETOPS_WORKER_APP: "worker"
   SETOPS_CLOCK_APP: "clock"
   SETOPS_IMAGE: "IMAGENAME"
-  SETOPS_PROJECT: "ccmycv"
+  SETOPS_PROJECT: "myproject"
   SETOPS_CLIENT: "yourcompany"
 
 jobs:
