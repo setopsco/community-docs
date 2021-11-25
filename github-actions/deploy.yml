@@ -49,9 +49,9 @@ jobs:
 
         - name: "[Config] Prepare SetOps config"
           run: |
-            echo "SETOPS_TARGET_IMAGE_WEB_APP=api.setops.net/${{ env.SETOPS_ORG }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WEB_APP }}:latest" >> $GITHUB_ENV
-            echo "SETOPS_TARGET_IMAGE_WORKER_APP=api.setops.net/${{ env.SETOPS_ORG }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WORKER_APP }}:latest" >> $GITHUB_ENV
-            echo "SETOPS_TARGET_IMAGE_CLOCK_APP=api.setops.net/${{ env.SETOPS_ORG }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_CLOCK_APP }}:latest" >> $GITHUB_ENV
+            echo "SETOPS_TARGET_IMAGE_WEB_APP=api.setops.co/${{ env.SETOPS_ORG }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WEB_APP }}:latest" >> $GITHUB_ENV
+            echo "SETOPS_TARGET_IMAGE_WORKER_APP=api.setops.co/${{ env.SETOPS_ORG }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WORKER_APP }}:latest" >> $GITHUB_ENV
+            echo "SETOPS_TARGET_IMAGE_CLOCK_APP=api.setops.co/${{ env.SETOPS_ORG }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_CLOCK_APP }}:latest" >> $GITHUB_ENV
 
         - name: "[Config] Summarize Config"
           run: |
