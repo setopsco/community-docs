@@ -1,6 +1,6 @@
 # SSH Database Proxy
 
-This is an example of deploying an SSH Database Proxy application on SetOps using [openSSH](https://www.openssh.com/). If you want your Database to get accessed securely from outside SetOps, you can use this SSH proxy for that purpose. In case another SetOps app like a background job needs access to the Database, use the [`link`](https://docs.setops.co/latest/user/configuration/services/#link-service-to-app) option instead.
+This is an example of deploying an SSH Database Proxy application on SetOps using [OpenSSH](https://www.openssh.com/). If you want your Database to get accessed securely from outside SetOps, you can use this SSH proxy for that purpose. In case another SetOps app like a background job needs access to the Database, use the [`link`](https://docs.setops.co/latest/user/configuration/services/#link-service-to-app) option instead.
 
 ## Setup
 
@@ -42,8 +42,8 @@ This is an example of deploying an SSH Database Proxy application on SetOps usin
 1. Build & Deploy the proxy using:
 
     ```shell
-    docker build -t <CLIENT>.setops.net/<PROJECT>/<STAGE>/proxy .
-    docker push <CLIENT>.setops.net/<PROJECT>/<STAGE>/proxy
+    docker build -t api.setops.co/<ORGANIZATION>/<PROJECT>/<STAGE>/proxy .
+    docker push api.setops.co/<ORGANIZATION>/<PROJECT>/<STAGE>/proxy
 
     setops -p <PROJECT> -s <STAGE> --app proxy release:create sha256:<sha>
     setops -p <PROJECT> -s <STAGE> --app proxy release:activate 1
