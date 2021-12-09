@@ -80,7 +80,7 @@ jobs:
          # ----- Discard old Changeset -----
         - name: "[Setup] Discard old Changeset"
           run: |
-            setops --stage ${{ env.SETOPS_STAGE }} discard --ignore-not-exist
+            setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} changeset:discard --ignore-not-exist
 
         - name: "[Setup] Install Pack CLI"
           uses: buildpacks/github-actions/setup-pack@main
