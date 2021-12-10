@@ -38,8 +38,8 @@ This is an example of deploying an SFTP service on SetOps using [OpenSSH](https:
 1. Build & Deploy the SFTP app using:
 
     ```shell
-    docker build -t <CLIENT>.setops.net/<PROJECT>/<STAGE>/sftp .
-    docker push <CLIENT>.setops.net/<PROJECT>/<STAGE>/sftp
+    docker build -t api.setops.co/<ORGANIZATION>/<PROJECT>/<STAGE>/sftp .
+    docker push api.setops.co/<ORGANIZATION>/<PROJECT>/<STAGE>/sftp
 
     setops -p <PROJECT> -s <STAGE> --app sftp release:create sha256:<sha>
     setops -p <PROJECT> -s <STAGE> --app sftp release:activate 1
