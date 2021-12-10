@@ -9,7 +9,10 @@
 
 * [SSH-Proxy](ssh-proxy)
 
+## Data Transfer Applications
+
+* [SFTP](sftp)
+
 ## 3rd-party Tools
 
 * [Graylog](graylog)
-
