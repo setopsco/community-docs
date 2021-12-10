@@ -4,10 +4,10 @@ This Readme and the [Dockerfile](./Docerfile) describe how to run the log manage
 
 ## Introductions
 
-Set the variable client according to your SetOps environment:
+Set the variable `ORG` according to your SetOps Organization name:
 
 ```
-CLIENT=<your client name>
+ORG=<your organization name>
 ```
 
 Create a new project & stage. We name it `graylog` & `production` in this example:
@@ -98,7 +98,7 @@ for app in web $INPUTS; do
 done
 ```
 
-Graylog also requires MongoDB. Since SetOps currently cannot provide MongoDB due to the licence of MongoDB, it is recommended to [use MongoDB Atlas with SetOps](https://try.setops.net/docs/user/configuration/extending-setops/#mongodb-atlas). When you have created a connection string to a MongoDB database, set it for all apps:
+Graylog also requires MongoDB. Since SetOps currently cannot provide MongoDB due to the licence of MongoDB, it is recommended to [use MongoDB Atlas with SetOps](https://docs.setops.co/latest/user/configuration/extending-setops/#mongodb-atlas). When you have created a connection string to a MongoDB database, set it for all apps:
 
 ```
 for app in web $INPUTS; do
@@ -112,8 +112,8 @@ Now build & release the Graylog image
 docker build --pull -t setops-graylog .
 
 for app in web $INPUTS; do
-  docker tag setops-graylog "$CLIENT.setops.net/graylog/production/$app:latest"
-  SETOPS_DIGEST=$(docker push "$CLIENT.setops.net/graylog/production/$app" | grep -o 'sha256:[a-zA-Z0-9]*')
+  docker tag setops-graylog "api.setops.co/$ORG/graylog/production/$app:latest"
+  SETOPS_DIGEST=$(docker push "api.setops.co/$ORG/graylog/production/$app" | grep -o 'sha256:[a-zA-Z0-9]*')
   SETOPS_RELEASE_ID=$(so --app "$app" release:create "$SETOPS_DIGEST" | grep -o 'ReleaseID.*' | grep -o '[0-9].*')
   so --app "$app" release:activate SETOPS_RELEASE_ID
 done

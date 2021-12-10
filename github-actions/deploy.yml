@@ -15,8 +15,8 @@ env:
   SETOPS_WORKER_APP: "worker"
   SETOPS_CLOCK_APP: "clock"
   SETOPS_IMAGE: "IMAGENAME"
-  SETOPS_PROJECT: "ccmycv"
-  SETOPS_CLIENT: "yourcompany"
+  SETOPS_PROJECT: "myproject"
+  SETOPS_ORG: "yourcompany"
 
 jobs:
   deploy:
@@ -49,9 +49,9 @@ jobs:
 
         - name: "[Config] Prepare SetOps config"
           run: |
-            echo "SETOPS_TARGET_IMAGE_WEB_APP=${{ env.SETOPS_CLIENT }}.setops.net/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WEB_APP }}:latest" >> $GITHUB_ENV
-            echo "SETOPS_TARGET_IMAGE_WORKER_APP=${{ env.SETOPS_CLIENT }}.setops.net/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WORKER_APP }}:latest" >> $GITHUB_ENV
-            echo "SETOPS_TARGET_IMAGE_CLOCK_APP=${{ env.SETOPS_CLIENT }}.setops.net/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_CLOCK_APP }}:latest" >> $GITHUB_ENV
+            echo "SETOPS_TARGET_IMAGE_WEB_APP=api.setops.co/${{ env.SETOPS_ORG }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WEB_APP }}:latest" >> $GITHUB_ENV
+            echo "SETOPS_TARGET_IMAGE_WORKER_APP=api.setops.co/${{ env.SETOPS_ORG }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_WORKER_APP }}:latest" >> $GITHUB_ENV
+            echo "SETOPS_TARGET_IMAGE_CLOCK_APP=api.setops.co/${{ env.SETOPS_ORG }}/${{ env.SETOPS_PROJECT }}/${{ env.APP_ENV }}/${{ env.SETOPS_CLOCK_APP }}:latest" >> $GITHUB_ENV
 
         - name: "[Config] Summarize Config"
           run: |
@@ -66,9 +66,9 @@ jobs:
 
         # ----- Install dependencies -----
         - name: "[Setup] Install SetOps"
-          uses: setopsco/setup-setops@v2
+          uses: setopsco/setup-setops@v3
           with:
-            setops_client: ${{ env.SETOPS_CLIENT }}
+            setops_organization: ${{ env.SETOPS_ORG }}
             setops_username: ${{ secrets.SETOPS_USER }}
             setops_password: ${{ secrets.SETOPS_PASSWORD }}
 
@@ -80,7 +80,7 @@ jobs:
          # ----- Discard old Changeset -----
         - name: "[Setup] Discard old Changeset"
           run: |
-            setops --stage ${{ env.SETOPS_STAGE }} discard --ignore-not-exist
+            setops -p ${{ env.SETOPS_PROJECT }} -s ${{ env.APP_ENV }} changeset:discard --ignore-not-exist
 
         - name: "[Setup] Install Pack CLI"
           uses: buildpacks/github-actions/setup-pack@main
