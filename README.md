@@ -2,7 +2,7 @@
 
 ## CI Systems Integration
 
-* [GitHub Actions](github-actions)
+* [GitHub Actions](https://github.com/setopsco/github-actions)
 * [Bitbucket Pipelines](bitbucket-pipelines)
 
 ## Proxy Applications
