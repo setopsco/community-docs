@@ -12,6 +12,7 @@ pipelines:
             SETOPS_IMAGE=cowsay
             SETOPS_PROJECT=felix
             SETOPS_ORG=dev
+            SETOPS_REGISTRY=api.setops.co
           EOF
 
           if [[ "$BITBUCKET_BRANCH" == staging ]]; then
@@ -23,9 +24,9 @@ pipelines:
           fi
 
           source setops-pipeline/.env
-          echo "SETOPS_TARGET_IMAGE_WEB_APP=api.setops.co/$SETOPS_ORG/$SETOPS_PROJECT/$APP_ENV/$SETOPS_WEB_APP:latest" >> setops-pipeline/.env
-          echo "SETOPS_TARGET_IMAGE_WORKER_APP=api.setops.co/$SETOPS_ORG/$SETOPS_PROJECT/$APP_ENV/$SETOPS_WORKER_APP:latest" >> setops-pipeline/.env
-          echo "SETOPS_TARGET_IMAGE_CLOCK_APP=api.setops.co/$SETOPS_ORG/$SETOPS_PROJECT/$APP_ENV/$SETOPS_CLOCK_APP:latest" >> setops-pipeline/.env
+          echo "SETOPS_TARGET_IMAGE_WEB_APP=$SETOPS_REGISTRY/$SETOPS_ORG/$SETOPS_PROJECT/$APP_ENV/$SETOPS_WEB_APP:latest" >> setops-pipeline/.env
+          echo "SETOPS_TARGET_IMAGE_WORKER_APP=$SETOPS_REGISTRY/$SETOPS_ORG/$SETOPS_PROJECT/$APP_ENV/$SETOPS_WORKER_APP:latest" >> setops-pipeline/.env
+          echo "SETOPS_TARGET_IMAGE_CLOCK_APP=$SETOPS_REGISTRY/$SETOPS_ORG/$SETOPS_PROJECT/$APP_ENV/$SETOPS_CLOCK_APP:latest" >> setops-pipeline/.env
         artifacts:
         - setops-pipeline/**
 
@@ -53,9 +54,11 @@ pipelines:
         image: ghcr.io/setopsco/setops-cli:latest
         script:
         - source setops-pipeline/.env
-        - printf "%s\n%s\n%s\n" "$SETOPS_ORG" "$SETOPS_USER" "$SETOPS_PASSWORD" | setops login
+        - printf "%s\n%s\n%s\n" "$SETOPS_ORG" "$SETOPS_USER" "$SETOPS_PASSWORD" | setops login --service-user
         - base64 < /home/setops/.setops.yml > setops-pipeline/setops.yml
-        - setops registry:login -o plain | base64 > setops-pipeline/setops-registry.txt
+        - CURRENT_SETOPS_ACCESS_TOKEN=$(grep token /home/setops/.setops.yml | cut -d' ' -f2)
+        # only prepare login command for later
+        - echo "docker login -u _token -p \"$CURRENT_SETOPS_ACCESS_TOKEN\" $SETOPS_REGISTRY" | base64 > setops-pipeline/setops-registry.txt
         artifacts:
         - setops-pipeline/**
 
