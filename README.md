@@ -16,3 +16,4 @@
 ## 3rd-party Tools
 
 * [Graylog](graylog)
+* [Metabase](metabase)
