@@ -1,0 +1,140 @@
+project: supabase
+schema_version: "1"
+stage: production
+apps:
+  kong:
+    env:
+      KONG_DATABASE:
+        value: off
+      KONG_DECLARATIVE_CONFIG:
+        value: /home/kong/kong.yml
+      KONG_DNS_ORDER:
+        value: LAST,A,CNAME
+      KONG_PLUGINS:
+        value: request-transformer,cors,key-auth,acl
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE:
+        value: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS:
+        value: 64 160k
+      SUPABASE_ANON_KEY:
+        value: "{{ .Secrets.ANON_KEY }}"
+      SUPABASE_SERVICE_KEY:
+        value: "{{ .Secrets.SERVICE_ROLE_KEY }}"
+      INTERNAL_DOMAIN:
+        value: "production.supabase.zweitagapps.internal"
+    network:
+      protocol: http
+      public: true
+      ports:
+        - 8000
+    resources:
+      cpu: 128
+      memory: 128
+      scale: 1
+  studio:
+    container:
+      health_check:
+        command:
+          - node
+          - -e
+          - "require('http').get('http://localhost:3000/api/profile', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+        interval: 5
+        timeout: 5
+        retries: 3
+        start_period: 15
+    env:
+      STUDIO_PG_META_URL:
+        value: http://meta.production.supabase.zweitagapps.internal:8080
+      POSTGRES_PASSWORD:
+        value: "{{ .Secrets.POSTGRES_PASSWORD }}"
+      DEFAULT_ORGANIZATION_NAME:
+        value: zweitag
+      DEFAULT_PROJECT_NAME:
+        value: welcome
+      SUPABASE_URL:
+        value: http://kong.production.supabase.zweitagapps.internal:8000
+      SUPABASE_PUBLIC_URL:
+        value: https://studio.production.supabase.zweitagapps.net
+      SUPABASE_ANON_KEY:
+        value: "{{ .Secrets.ANON_KEY }}"
+      SUPABASE_SERVICE_KEY:
+        value: "{{ .Secrets.SERVICE_ROLE_KEY }}"
+    network:
+      protocol: http
+      public: true
+      ports:
+        - 3000
+    resources:
+      cpu: 128
+      memory: 256
+      scale: 1
+  gotrue:
+    network:
+      protocol: http
+      public: false
+      ports:
+        - 9999
+    resources:
+      cpu: 128
+      memory: 128
+      scale: 1
+  postgrest:
+    network:
+      protocol: http
+      public: false
+      ports:
+        - 3000
+    resources:
+      cpu: 128
+      memory: 128
+      scale: 1
+  realtime:
+    network:
+      protocol: http
+      public: false
+      ports:
+        - 4000
+    resources:
+      cpu: 128
+      memory: 128
+      scale: 1
+  storage:
+    network:
+      protocol: http
+      public: false
+      ports:
+        - 5000
+    resources:
+      cpu: 128
+      memory: 128
+      scale: 1
+  meta:
+    network:
+      protocol: http
+      public: false
+      ports:
+        - 8080
+    resources:
+      cpu: 128
+      memory: 128
+      scale: 1
+  functions:
+    network:
+      protocol: http
+      public: false
+      ports:
+        - 8000
+    resources:
+      cpu: 128
+      memory: 128
+      scale: 1
+services:
+  database:
+    type: postgresql
+    version: "13"
+    plan: db.t3.micro
+    options:
+      min_storage: 20
+      max_storage: 100
+  storage:
+    type: volume
