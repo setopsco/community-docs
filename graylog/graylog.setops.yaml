@@ -1,0 +1,78 @@
+schema_version: "1"
+project: graylog
+stage: production
+apps:
+  gelf-input-nodes:
+    container: {}
+    env:
+      GRAYLOG_HTTP_EXTERNAL_URI:
+        value: "{{ .Secrets.GRAYLOG_HTTP_EXTERNAL_URI }}"
+      GRAYLOG_IS_MASTER:
+        value: "false"
+      GRAYLOG_MONGODB_URI:
+        value: "{{ .Secrets.GRAYLOG_MONGODB_URI }}"
+      GRAYLOG_PASSWORD_SECRET:
+        value: "{{ .Secrets.GRAYLOG_PASSWORD_SECRET }}"
+      GRAYLOG_ROOT_PASSWORD_SHA2:
+        value: "{{ .Secrets.GRAYLOG_ROOT_PASSWORD_SHA2 }}"
+      GRAYLOG_ROOT_TIMEZONE:
+        value: "Europe/Berlin"
+      TINI_SUBREAPER:
+        value: "true"
+    network:
+      health_check:
+        path: /api/system/lbstatus
+        status: 200-499
+      protocol: http
+      public: true
+      ports:
+        - 12201
+    resources:
+      cpu: 1024
+      memory: 2048
+      scale: 0
+    links:
+      es1:
+        env_key: GRAYLOG_ELASTICSEARCH_HOSTS
+  web:
+    container: {}
+    env:
+      GRAYLOG_HTTP_EXTERNAL_URI:
+        value: "{{ .Secrets.GRAYLOG_HTTP_EXTERNAL_URI }}"
+      GRAYLOG_IS_MASTER:
+        value: "true"
+      GRAYLOG_MONGODB_URI:
+        value: "{{ .Secrets.GRAYLOG_MONGODB_URI }}"
+      GRAYLOG_PASSWORD_SECRET:
+        value: "{{ .Secrets.GRAYLOG_PASSWORD_SECRET }}"
+      GRAYLOG_ROOT_PASSWORD_SHA2:
+        value: "{{ .Secrets.GRAYLOG_ROOT_PASSWORD_SHA2 }}"
+      GRAYLOG_ROOT_TIMEZONE:
+        value: "Europe/Berlin"
+      TINI_SUBREAPER:
+        value: "true"
+      Test:
+        value: "{{ .Secrets.Test }}"
+    network:
+      health_check:
+        path: /api/system/lbstatus
+        status: 200-499
+      protocol: http
+      public: true
+      ports:
+        - 9000
+    resources:
+      cpu: 1024
+      memory: 2048
+      scale: 0
+    links:
+      es1:
+        env_key: GRAYLOG_ELASTICSEARCH_HOSTS
+services:
+  es1:
+    type: elasticsearch
+    plan: t3.medium.elasticsearch
+    version: "7"
+    options:
+      storage: 50
+notifications: {}
